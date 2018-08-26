@@ -19,7 +19,7 @@ public class EventsModel {
 		this.events = events !=null ? events:Collections.emptyList();
 	}
 	
-	public List<Event> geEvents(){
+	public List<Event> getEvents(){
 		return events;
 	}
 	
