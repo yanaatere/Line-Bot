@@ -38,7 +38,7 @@ public class Config
                 .writeTimeout(10_000)
                 .build();
     }
- 
+
     @Bean(name="lineSignatureValidator")
     public LineSignatureValidator getSignatureValidator()
     {

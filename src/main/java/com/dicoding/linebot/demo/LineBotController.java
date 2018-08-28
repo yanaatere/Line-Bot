@@ -41,15 +41,15 @@ public class LineBotController {
             // parsing event
             ObjectMapper objectMapper = ModelObjectMapper.createNewObjectMapper();
             EventsModel eventsModel = objectMapper.readValue(eventsPayload, EventsModel.class);
- 
+            System.out.println("Ini Kepanggil");
             eventsModel.getEvents().forEach((event)->{
-                // kode reply message disini
+                
             });
  
             return new ResponseEntity<>(HttpStatus.OK);
-        } catch (IOException e) {
+        } catch (Exception e) {
             e.printStackTrace();
-            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+            return new ResponseEntity<String>("Error",HttpStatus.BAD_REQUEST);
         }
     }
 }
