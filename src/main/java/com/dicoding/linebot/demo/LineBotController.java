@@ -1,12 +1,22 @@
 package com.dicoding.linebot.demo;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
 import javax.management.RuntimeErrorException;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,13 +28,20 @@ import org.springframework.web.bind.annotation.RestController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.linecorp.bot.client.LineMessagingClient;
 import com.linecorp.bot.client.LineSignatureValidator;
+import com.linecorp.bot.client.MessageContentResponse;
+import com.linecorp.bot.model.Multicast;
 import com.linecorp.bot.model.PushMessage;
 import com.linecorp.bot.model.ReplyMessage;
 import com.linecorp.bot.model.event.MessageEvent;
+import com.linecorp.bot.model.event.message.AudioMessageContent;
+import com.linecorp.bot.model.event.message.FileMessageContent;
+import com.linecorp.bot.model.event.message.ImageMessageContent;
 import com.linecorp.bot.model.event.message.TextMessageContent;
+import com.linecorp.bot.model.event.message.VideoMessageContent;
 import com.linecorp.bot.model.message.StickerMessage;
 import com.linecorp.bot.model.message.TextMessage;
 import com.linecorp.bot.model.objectmapper.ModelObjectMapper;
+import com.linecorp.bot.model.profile.UserProfileResponse;
 
 @RestController
 public class LineBotController {
@@ -57,7 +74,26 @@ public class LineBotController {
 			System.out.println("Ini Kepanggil");
 
 			eventsModel.getEvents().forEach((event) -> {
-				if (event instanceof MessageEvent) {
+				// Apabila Ingin membalas pesan sesuai pesan
+				/*
+				 * if (event instanceof MessageEvent) { MessageEvent messageEvent =
+				 * (MessageEvent) event; TextMessageContent textMessageContent =
+				 * (TextMessageContent) messageEvent.getMessage();
+				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText()); }
+				 */
+
+				if (( (MessageEvent) event).getMessage() instanceof  AudioMessageContent
+				|| ((MessageEvent) event).getMessage()  instanceof ImageMessageContent
+				|| ( (MessageEvent) event).getMessage() instanceof VideoMessageContent
+				|| ((MessageEvent) event).getMessage()  instanceof FileMessageContent
+				){
+					String baseUrl = "https://botlinedi.herokuapp.com/";
+					String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
+					String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
+					String textMsg = contentType.substring(0,contentType.length() - 14) + " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
+					
+					replyText(((MessageEvent) event).getReplyToken(), textMsg);
+				} else {
 					MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
 					replyText(messageEvent.getReplyToken(), textMessageContent.getText());
@@ -71,35 +107,118 @@ public class LineBotController {
 		}
 	}
 
-	@RequestMapping(value="/pushmessage/{id}/{message}", method=RequestMethod.GET)
-	public ResponseEntity<String> pushmessage(
-	    @PathVariable("id") String userId,
-	    @PathVariable("message") String textMsg
-	){
-	    TextMessage textMessage = new TextMessage(textMsg);
-	    PushMessage pushMessage = new PushMessage(userId, textMessage);
-	    push(pushMessage);
-	 
-	    return new ResponseEntity<String>("Push message:"+textMsg+"\nsent to: "+userId, HttpStatus.OK);
+	@RequestMapping(value = "/pushmessage/{id}/{message}", method = RequestMethod.GET)
+	public ResponseEntity<String> pushmessage(@PathVariable("id") String userId,
+			@PathVariable("message") String textMsg) {
+		TextMessage textMessage = new TextMessage(textMsg);
+		PushMessage pushMessage = new PushMessage(userId, textMessage);
+		push(pushMessage);
+
+		return new ResponseEntity<String>("Push message:" + textMsg + "\nsent to: " + userId, HttpStatus.OK);
 	}
-	
+
 	@RequestMapping(value = "/pushsticker/{id}/{stickerId}", method = RequestMethod.POST)
 	public ResponseEntity<String> pushSticker(@PathVariable String sourceId, @PathVariable String stickerId) {
-		
-			StickerMessage stickerMessage = new StickerMessage(sourceId, stickerId);
-			PushMessage pushMessage = new PushMessage(stickerId, stickerMessage);
-			push(pushMessage);
-			return new ResponseEntity<String>("PushMessage " + sourceId + "\nSent to " + stickerId, HttpStatus.OK);
-	
+
+		StickerMessage stickerMessage = new StickerMessage(sourceId, stickerId);
+		PushMessage pushMessage = new PushMessage(stickerId, stickerMessage);
+		push(pushMessage);
+		return new ResponseEntity<String>("PushMessage " + sourceId + "\nSent to " + stickerId, HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/multicast", method = RequestMethod.GET)
+	public ResponseEntity<String> multicast() {
+		String[] userIdList = { "U674e4eadb0be05c9f8a94692fdf56aeb" };
+		Set<String> listUser = new HashSet<String>(Arrays.asList(userIdList));
+		if (listUser.size() > 0) {
+			String textMsg = "Ini Pesan Multicast";
+			sendMulticast(listUser, textMsg);
 		}
 
+		return new ResponseEntity<String>("Berhasil Mengirim Ke Semua ID", HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/profile", method = RequestMethod.GET)
+	public ResponseEntity<String> profile() {
+		String userID = "U674e4eadb0be05c9f8a94692fdf56aeb";
+		UserProfileResponse profile = getProfile(userID);
+		if (profile != null) {
+			String profileName = profile.getDisplayName();
+			TextMessage textMessage = new TextMessage("Hello " + profileName);
+			PushMessage pushMessage = new PushMessage(userID, textMessage);
+			push(pushMessage);
+			return new ResponseEntity<String>("Hello " + profileName, HttpStatus.OK);
+		}
+
+		return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
+	}
+
+	@RequestMapping(value = "/profile/{id}", method = RequestMethod.GET)
+	public ResponseEntity<String> profile(@PathVariable("id") String userId) {
+		UserProfileResponse profile = getProfile(userId);
+
+		if (profile != null) {
+			String profileName = profile.getDisplayName();
+			TextMessage textMessage = new TextMessage("Hello, " + profileName);
+			PushMessage pushMessage = new PushMessage(userId, textMessage);
+			push(pushMessage);
+
+			return new ResponseEntity<String>("Hello, " + profileName, HttpStatus.OK);
+		}
+
+		return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
+	}
 	
-	private void push(PushMessage pushMessage){
-	    try {
-	        lineMessagingClient.pushMessage(pushMessage).get();
-	    } catch (InterruptedException | ExecutionException e) {
-	        throw new RuntimeException(e);
-	    }
+	@RequestMapping(value = "/content/{id}",method = RequestMethod.GET)
+	public ResponseEntity content(@PathVariable ("id") String messageId) {
+		MessageContentResponse messageContent = getContent(messageId);
+		
+		if (messageContent != null) {
+			HttpHeaders headers = new HttpHeaders();
+			String [] mimeType = messageContent.getMimeType().split("/");
+			headers.setContentType(new MediaType(mimeType[0],mimeType[1]));
+			
+			InputStream inputStream = messageContent.getStream();
+			InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
+			
+			return new ResponseEntity(inputStreamResource, headers, HttpStatus.OK);
+		}
+		
+		return new ResponseEntity<>(HttpStatus.OK);
+	}
+
+	private MessageContentResponse getContent(String messageId) {
+		try {
+			return lineMessagingClient.getMessageContent(messageId).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private UserProfileResponse getProfile(String userId) {
+		try {
+			return lineMessagingClient.getProfile(userId).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void sendMulticast(Set<String> sourceUser, String txtMessage) {
+		TextMessage txtMsg = new TextMessage(txtMessage);
+		Multicast multicast = new Multicast(sourceUser, txtMsg);
+		try {
+			lineMessagingClient.multicast(multicast).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void push(PushMessage pushMessage) {
+		try {
+			lineMessagingClient.pushMessage(pushMessage).get();
+		} catch (InterruptedException | ExecutionException e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	private void reply(ReplyMessage replyMessage) {
