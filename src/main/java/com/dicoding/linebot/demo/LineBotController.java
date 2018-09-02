@@ -63,10 +63,9 @@ public class LineBotController {
 	public ResponseEntity<String> callback(@RequestHeader("X-Line-Signature") String xLineSignature,
 			@RequestBody String eventsPayload) {
 		try {
-			// if (!lineSignatureValidator.validateSignature(eventsPayload.getBytes(),
-			// xLineSignature)) {
-			// throw new RuntimeException("Invalid Signature Validation");
-			// }
+			if (!lineSignatureValidator.validateSignature(eventsPayload.getBytes(), xLineSignature)) {
+				throw new RuntimeException("Invalid Signature Validation");
+			}
 
 			// parsing event
 			ObjectMapper objectMapper = ModelObjectMapper.createNewObjectMapper();
@@ -75,29 +74,30 @@ public class LineBotController {
 
 			eventsModel.getEvents().forEach((event) -> {
 				// Apabila Ingin membalas pesan sesuai pesan
-				/*
-				 * if (event instanceof MessageEvent) { MessageEvent messageEvent =
-				 * (MessageEvent) event; TextMessageContent textMessageContent =
-				 * (TextMessageContent) messageEvent.getMessage();
-				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText()); }
-				 */
 
-				if (( (MessageEvent) event).getMessage() instanceof  AudioMessageContent
-				|| ((MessageEvent) event).getMessage()  instanceof ImageMessageContent
-				|| ( (MessageEvent) event).getMessage() instanceof VideoMessageContent
-				|| ((MessageEvent) event).getMessage()  instanceof FileMessageContent
-				){
-					String baseUrl = "https://botlinedi.herokuapp.com/";
-					String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
-					String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
-					String textMsg = contentType.substring(0,contentType.length() - 14) + " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
-					
-					replyText(((MessageEvent) event).getReplyToken(), textMsg);
-				} else {
-					MessageEvent messageEvent = (MessageEvent) event;
+				if (event instanceof MessageEvent) {
+					/*MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					replyText(messageEvent.getReplyToken(), textMessageContent.getText());
+					replyText(messageEvent.getReplyToken(), textMessageContent.getText());*/
 				}
+
+				/*
+				 * if (( (MessageEvent) event).getMessage() instanceof AudioMessageContent ||
+				 * ((MessageEvent) event).getMessage() instanceof ImageMessageContent || (
+				 * (MessageEvent) event).getMessage() instanceof VideoMessageContent ||
+				 * ((MessageEvent) event).getMessage() instanceof FileMessageContent ){ String
+				 * baseUrl = "https://botlinedi.herokuapp.com/"; String contentUrl = baseUrl +
+				 * "/content/" + ((MessageEvent) event).getMessage().getId(); String contentType
+				 * = ((MessageEvent) event).getMessage().getClass().getSimpleName(); String
+				 * textMsg = contentType.substring(0,contentType.length() - 14) +
+				 * " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
+				 * 
+				 * replyText(((MessageEvent) event).getReplyToken(), textMsg); } else {
+				 * MessageEvent messageEvent = (MessageEvent) event; TextMessageContent
+				 * textMessageContent = (TextMessageContent) messageEvent.getMessage();
+				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText());
+				 * replySticker(messageEvent.getReplyToken(), "1", "1"); }
+				 */
 			});
 
 			return new ResponseEntity<>(HttpStatus.OK);
@@ -168,22 +168,22 @@ public class LineBotController {
 
 		return new ResponseEntity<String>(HttpStatus.NOT_FOUND);
 	}
-	
-	@RequestMapping(value = "/content/{id}",method = RequestMethod.GET)
-	public ResponseEntity content(@PathVariable ("id") String messageId) {
+
+	@RequestMapping(value = "/content/{id}", method = RequestMethod.GET)
+	public ResponseEntity content(@PathVariable("id") String messageId) {
 		MessageContentResponse messageContent = getContent(messageId);
-		
+
 		if (messageContent != null) {
 			HttpHeaders headers = new HttpHeaders();
-			String [] mimeType = messageContent.getMimeType().split("/");
-			headers.setContentType(new MediaType(mimeType[0],mimeType[1]));
-			
+			String[] mimeType = messageContent.getMimeType().split("/");
+			headers.setContentType(new MediaType(mimeType[0], mimeType[1]));
+
 			InputStream inputStream = messageContent.getStream();
 			InputStreamResource inputStreamResource = new InputStreamResource(inputStream);
-			
+
 			return new ResponseEntity(inputStreamResource, headers, HttpStatus.OK);
 		}
-		
+
 		return new ResponseEntity<>(HttpStatus.OK);
 	}
 
