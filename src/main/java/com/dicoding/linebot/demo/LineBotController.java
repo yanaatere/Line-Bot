@@ -72,9 +72,9 @@ public class LineBotController {
 				// Apabila Ingin membalas pesan sesuai pesan
 
 				if (event instanceof MessageEvent) {
-					/*MessageEvent messageEvent = (MessageEvent) event;
+					MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					replyText(messageEvent.getReplyToken(), textMessageContent.getText());*/
+					replyText(messageEvent.getReplyToken(), textMessageContent.getText());
 				}
 
 				/*
