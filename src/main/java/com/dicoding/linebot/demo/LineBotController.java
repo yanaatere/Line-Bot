@@ -74,7 +74,7 @@ public class LineBotController {
 				if (event instanceof MessageEvent) {
 					MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					//replyText(messageEvent.getReplyToken(), textMessageContent.getText());
+					replyText(messageEvent.getReplyToken(), "Nur Eliza, anaknya Ibu hahahah");
 					replySticker(messageEvent.getReplyToken(), "1", "1");
 				}
 
