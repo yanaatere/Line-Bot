@@ -1,12 +1,15 @@
 package com.dicoding.linebot.demo;
 
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.commons.io.IOUtils;
 import org.hibernate.validator.group.GroupSequenceProvider;
+import org.mockito.internal.util.io.IOUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.InputStreamResource;
@@ -36,8 +39,10 @@ import com.linecorp.bot.model.event.message.TextMessageContent;
 import com.linecorp.bot.model.event.message.VideoMessageContent;
 import com.linecorp.bot.model.event.source.GroupSource;
 import com.linecorp.bot.model.event.source.RoomSource;
+import com.linecorp.bot.model.message.FlexMessage;
 import com.linecorp.bot.model.message.StickerMessage;
 import com.linecorp.bot.model.message.TextMessage;
+import com.linecorp.bot.model.message.flex.container.FlexContainer;
 import com.linecorp.bot.model.objectmapper.ModelObjectMapper;
 import com.linecorp.bot.model.profile.UserProfileResponse;
 
@@ -92,21 +97,33 @@ public class LineBotController {
 				|| ((MessageEvent) event).getMessage() instanceof ImageMessageContent
 				|| ((MessageEvent) event).getMessage() instanceof VideoMessageContent
 				|| ((MessageEvent) event).getMessage() instanceof FileMessageContent) {
-			String baseUrl = "https://botlinedi.herokuapp.com/";
-			String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
-			String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
-			String textMsg = contentType.substring(0, contentType.length() - 14)
-					+ " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
-
-			replyText(((MessageEvent) event).getReplyToken(), textMsg);
-			getContent(textMsg);
+			handleContentMessage(event);
+		} else if (event.getMessage() instanceof TextMessageContent) {
+			handleTextMessage(event);
 		} else {
-			MessageEvent messageEvent = (MessageEvent) event;
-			TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-			replyText(messageEvent.getReplyToken(), textMessageContent.getText());
-			// replySticker(messageEvent.getReplyToken(), "1", "1");
-			// getContent(textMessageContent.getText());
+			replyText(event.getReplyToken(), "Unkonw Message");
 		}
+			
+	}
+
+	private void handleTextMessage(MessageEvent event) {
+		TextMessageContent textMessageContent = (TextMessageContent) event.getMessage();
+
+		if (textMessageContent.getText().toLowerCase().contains("flex")) {
+			replyFlexMessage(event.getReplyToken());
+		} else {
+			replyText(event.getReplyToken(), textMessageContent.getText());
+		}
+
+	}
+
+	private void handleContentMessage(MessageEvent event) {
+		String baseUrl = "https://botlinedi.herokuapp.com/";
+		String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
+		String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
+		String textMsg = contentType.substring(0, contentType.length() - 14)
+				+ " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
+		replyText(event.getReplyToken(), textMsg);
 	}
 
 	@RequestMapping(value = "/pushmessage/{id}/{message}", method = RequestMethod.GET)
@@ -249,6 +266,22 @@ public class LineBotController {
 			replyText(event.getReplyToken(), "Hello" + profile.getDisplayName());
 		} else {
 			replyText(event.getReplyToken(), "Hello");
+		}
+	}
+
+	private void replyFlexMessage(String replyToken) {
+		try {
+			ClassLoader classLoader = getClass().getClassLoader();
+			String flexTemplate = IOUtils.toString(classLoader.getResourceAsStream("flex_message.json"));
+
+			ObjectMapper objectMapper = ModelObjectMapper.createNewObjectMapper();
+			FlexContainer flexContainer = objectMapper.readValue(flexTemplate, FlexContainer.class);
+
+			ReplyMessage replyMessage = new ReplyMessage(replyToken,
+					new FlexMessage("Dicoding Academy", flexContainer));
+			reply(replyMessage);
+		} catch (IOException e) {
+			throw new RuntimeException();
 		}
 	}
 }
