@@ -6,6 +6,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 
+import org.hibernate.validator.group.GroupSequenceProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.InputStreamResource;
@@ -33,6 +34,8 @@ import com.linecorp.bot.model.event.message.FileMessageContent;
 import com.linecorp.bot.model.event.message.ImageMessageContent;
 import com.linecorp.bot.model.event.message.TextMessageContent;
 import com.linecorp.bot.model.event.message.VideoMessageContent;
+import com.linecorp.bot.model.event.source.GroupSource;
+import com.linecorp.bot.model.event.source.RoomSource;
 import com.linecorp.bot.model.message.StickerMessage;
 import com.linecorp.bot.model.message.TextMessage;
 import com.linecorp.bot.model.objectmapper.ModelObjectMapper;
@@ -69,42 +72,40 @@ public class LineBotController {
 			System.out.println("Ini Kepanggil");
 
 			eventsModel.getEvents().forEach((event) -> {
-				// Apabila Ingin membalas pesan sesuai pesan
-
-				/*
-				 * // if (event instanceof MessageEvent) { // MessageEvent messageEvent =
-				 * (MessageEvent) event; // TextMessageContent textMessageContent =
-				 * (TextMessageContent) messageEvent.getMessage(); //
-				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText()); //
-				 * //replySticker(messageEvent.getReplyToken(), "1", "1"); // }
-				 */
-
-				if (((MessageEvent) event).getMessage() instanceof AudioMessageContent
-						|| ((MessageEvent) event).getMessage() instanceof ImageMessageContent
-						|| ((MessageEvent) event).getMessage() instanceof VideoMessageContent
-						|| ((MessageEvent) event).getMessage() instanceof FileMessageContent) {
-					String baseUrl = "https://botlinedi.herokuapp.com/";
-					String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
-					String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
-					String textMsg = contentType.substring(0, contentType.length() - 14)
-							+ " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
-
-					replyText(((MessageEvent) event).getReplyToken(), textMsg);
-					getContent(textMsg);
-				} else {
-					MessageEvent messageEvent = (MessageEvent) event;
-					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					// replyText(messageEvent.getReplyToken(), textMessageContent.getText());
-					replySticker(messageEvent.getReplyToken(), "1", "1");
-					getContent(textMessageContent.getText());
+				if (event instanceof MessageEvent) {
+					if (event.getSource() instanceof GroupSource || event.getSource() instanceof RoomSource) {
+						handleGroupRoomChats((MessageEvent) event);
+					} else {
+						handleOneOnOneChats((MessageEvent) event);
+					}
 				}
-
 			});
-
 			return new ResponseEntity<>(HttpStatus.OK);
 		} catch (Exception e) {
 			e.printStackTrace();
 			return new ResponseEntity<String>("Error", HttpStatus.BAD_REQUEST);
+		}
+	}
+
+	private void handleOneOnOneChats(MessageEvent event) {
+		if (((MessageEvent) event).getMessage() instanceof AudioMessageContent
+				|| ((MessageEvent) event).getMessage() instanceof ImageMessageContent
+				|| ((MessageEvent) event).getMessage() instanceof VideoMessageContent
+				|| ((MessageEvent) event).getMessage() instanceof FileMessageContent) {
+			String baseUrl = "https://botlinedi.herokuapp.com/";
+			String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
+			String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
+			String textMsg = contentType.substring(0, contentType.length() - 14)
+					+ " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
+
+			replyText(((MessageEvent) event).getReplyToken(), textMsg);
+			getContent(textMsg);
+		} else {
+			MessageEvent messageEvent = (MessageEvent) event;
+			TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
+			replyText(messageEvent.getReplyToken(), textMessageContent.getText());
+			// replySticker(messageEvent.getReplyToken(), "1", "1");
+			// getContent(textMessageContent.getText());
 		}
 	}
 
@@ -239,5 +240,15 @@ public class LineBotController {
 		StickerMessage stickerMessage = new StickerMessage(packageId, stickerId);
 		ReplyMessage replyMessage = new ReplyMessage(replyToken, stickerMessage);
 		reply(replyMessage);
+	}
+
+	private void handleGroupRoomChats(MessageEvent event) {
+		if (!event.getSource().getUserId().isEmpty()) {
+			String userId = event.getSource().getUserId();
+			UserProfileResponse profile = getProfile(userId);
+			replyText(event.getReplyToken(), "Hello" + profile.getDisplayName());
+		} else {
+			replyText(event.getReplyToken(), "Hello");
+		}
 	}
 }
