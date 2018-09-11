@@ -1,6 +1,5 @@
 package com.dicoding.linebot.demo;
 
-
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -59,9 +58,10 @@ public class LineBotController {
 	public ResponseEntity<String> callback(@RequestHeader("X-Line-Signature") String xLineSignature,
 			@RequestBody String eventsPayload) {
 		try {
-			if (!lineSignatureValidator.validateSignature(eventsPayload.getBytes(), xLineSignature)) {
-				throw new RuntimeException("Invalid Signature Validation");
-			}
+			// if (!lineSignatureValidator.validateSignature(eventsPayload.getBytes(),
+			// xLineSignature)) {
+			// throw new RuntimeException("Invalid Signature Validation");
+			// }
 
 			// parsing event
 			ObjectMapper objectMapper = ModelObjectMapper.createNewObjectMapper();
@@ -71,30 +71,34 @@ public class LineBotController {
 			eventsModel.getEvents().forEach((event) -> {
 				// Apabila Ingin membalas pesan sesuai pesan
 
-				if (event instanceof MessageEvent) {
+				/*
+				 * // if (event instanceof MessageEvent) { // MessageEvent messageEvent =
+				 * (MessageEvent) event; // TextMessageContent textMessageContent =
+				 * (TextMessageContent) messageEvent.getMessage(); //
+				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText()); //
+				 * //replySticker(messageEvent.getReplyToken(), "1", "1"); // }
+				 */
+
+				if (((MessageEvent) event).getMessage() instanceof AudioMessageContent
+						|| ((MessageEvent) event).getMessage() instanceof ImageMessageContent
+						|| ((MessageEvent) event).getMessage() instanceof VideoMessageContent
+						|| ((MessageEvent) event).getMessage() instanceof FileMessageContent) {
+					String baseUrl = "https://botlinedi.herokuapp.com/";
+					String contentUrl = baseUrl + "/content/" + ((MessageEvent) event).getMessage().getId();
+					String contentType = ((MessageEvent) event).getMessage().getClass().getSimpleName();
+					String textMsg = contentType.substring(0, contentType.length() - 14)
+							+ " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
+
+					replyText(((MessageEvent) event).getReplyToken(), textMsg);
+					getContent(textMsg);
+				} else {
 					MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					replyText(messageEvent.getReplyToken(), "Nur Eliza, anaknya Ibu hahahah");
+					//replyText(messageEvent.getReplyToken(), textMessageContent.getText());
 					replySticker(messageEvent.getReplyToken(), "1", "1");
+					getContent(textMsg);
 				}
 
-				/*
-				 * if (( (MessageEvent) event).getMessage() instanceof AudioMessageContent ||
-				 * ((MessageEvent) event).getMessage() instanceof ImageMessageContent || (
-				 * (MessageEvent) event).getMessage() instanceof VideoMessageContent ||
-				 * ((MessageEvent) event).getMessage() instanceof FileMessageContent ){ String
-				 * baseUrl = "https://botlinedi.herokuapp.com/"; String contentUrl = baseUrl +
-				 * "/content/" + ((MessageEvent) event).getMessage().getId(); String contentType
-				 * = ((MessageEvent) event).getMessage().getClass().getSimpleName(); String
-				 * textMsg = contentType.substring(0,contentType.length() - 14) +
-				 * " yang kamu kirim bisa diakses dari link:\n " + contentUrl;
-				 * 
-				 * replyText(((MessageEvent) event).getReplyToken(), textMsg); } else {
-				 * MessageEvent messageEvent = (MessageEvent) event; TextMessageContent
-				 * textMessageContent = (TextMessageContent) messageEvent.getMessage();
-				 * replyText(messageEvent.getReplyToken(), textMessageContent.getText());
-				 * replySticker(messageEvent.getReplyToken(), "1", "1"); }
-				 */
 			});
 
 			return new ResponseEntity<>(HttpStatus.OK);
@@ -114,13 +118,12 @@ public class LineBotController {
 		return new ResponseEntity<String>("Push message:" + textMsg + "\nsent to: " + userId, HttpStatus.OK);
 	}
 
-	@RequestMapping(value = "/pushsticker/{id}/{stickerId}", method = RequestMethod.POST)
-	public ResponseEntity<String> pushSticker(@PathVariable String sourceId, @PathVariable String stickerId) {
-
-		StickerMessage stickerMessage = new StickerMessage(sourceId, stickerId);
-		PushMessage pushMessage = new PushMessage(stickerId, stickerMessage);
+	@RequestMapping(value = "/pushsticker/{id}", method = RequestMethod.GET)
+	public ResponseEntity<String> pushSticker(@PathVariable("id") String userId) {
+		StickerMessage stickerMessage = new StickerMessage("1", "104");
+		PushMessage pushMessage = new PushMessage(userId, stickerMessage);
 		push(pushMessage);
-		return new ResponseEntity<String>("PushMessage " + sourceId + "\nSent to " + stickerId, HttpStatus.OK);
+		return new ResponseEntity<String>("PushMessage " + userId, HttpStatus.OK);
 	}
 
 	@RequestMapping(value = "/multicast", method = RequestMethod.GET)
