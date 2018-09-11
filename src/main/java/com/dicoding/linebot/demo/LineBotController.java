@@ -94,9 +94,9 @@ public class LineBotController {
 				} else {
 					MessageEvent messageEvent = (MessageEvent) event;
 					TextMessageContent textMessageContent = (TextMessageContent) messageEvent.getMessage();
-					//replyText(messageEvent.getReplyToken(), textMessageContent.getText());
+					// replyText(messageEvent.getReplyToken(), textMessageContent.getText());
 					replySticker(messageEvent.getReplyToken(), "1", "1");
-					getContent(textMsg);
+					getContent(textMessageContent.getText());
 				}
 
 			});
