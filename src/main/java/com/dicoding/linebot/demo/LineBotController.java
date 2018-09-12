@@ -103,12 +103,11 @@ public class LineBotController {
 		} else {
 			replyText(event.getReplyToken(), "Unkonw Message");
 		}
-			
+
 	}
 
 	private void handleTextMessage(MessageEvent event) {
 		TextMessageContent textMessageContent = (TextMessageContent) event.getMessage();
-
 		if (textMessageContent.getText().toLowerCase().contains("flex")) {
 			replyFlexMessage(event.getReplyToken());
 		} else {
@@ -277,8 +276,7 @@ public class LineBotController {
 			ObjectMapper objectMapper = ModelObjectMapper.createNewObjectMapper();
 			FlexContainer flexContainer = objectMapper.readValue(flexTemplate, FlexContainer.class);
 
-			ReplyMessage replyMessage = new ReplyMessage(replyToken,
-					new FlexMessage("Dicoding Academy", flexContainer));
+			ReplyMessage replyMessage = new ReplyMessage(replyToken,new FlexMessage("Dicoding Academy", flexContainer));
 			reply(replyMessage);
 		} catch (IOException e) {
 			throw new RuntimeException();
